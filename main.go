@@ -12,6 +12,11 @@ import (
 	"github.com/g8rswimmer/go-twitter/v2"
 )
 
+const (
+	ISO_8601    = "2006-01-02T15:04:05.000Z"
+	CUSTOM_TIME = "Jan 2, 2006 at 3:04pm (MST)"
+)
+
 type authorize struct {
 	Token string
 }
@@ -34,30 +39,44 @@ func main() {
 	bearerToken := flag.String("token", "", "bearer APIv2 twitter token")
 	tweetID := flag.String("id", "1473394217284255744", "tweet ID")
 	followersThreshold := flag.Int("threshold", 10, "number of minimum followers per user to count it as valid voter")
+	startDateStr := flag.String("startDate", "", "start time in format: "+CUSTOM_TIME)
+	endDateStr := flag.String("endDate", "", "end time in format: "+CUSTOM_TIME)
 	flag.Parse()
 
 	tw := TwitterHandler{}
 	tw.Init(*bearerToken)
-
 	client := &twitter.Client{
 		Authorizer: tw.auth,
 		Client:     http.DefaultClient,
 		Host:       "https://api.twitter.com",
 	}
 
+	searchOpts := twitter.TweetRecentSearchOpts{
+		MaxResults: 50,
+		TweetFields: []twitter.TweetField{
+			twitter.TweetFieldAuthorID,
+			twitter.TweetFieldCreatedAt},
+	}
+
+	var err error
+	if len(*startDateStr) > 0 {
+		searchOpts.StartTime, err = time.Parse(CUSTOM_TIME, *startDateStr)
+	}
+	if len(*endDateStr) > 0 {
+		searchOpts.EndTime, err = time.Parse(CUSTOM_TIME, *endDateStr)
+	}
+	if err != nil {
+		panic(err)
+	}
+
 	catalanVoters := []string{}
 	degens := []string{}
-	lastID := ""
 	tctx, cancel := context.WithCancel(context.TODO())
 	for {
 		resp, err := client.TweetRecentSearch(
 			tctx,
 			fmt.Sprintf("conversation_id:%s", *tweetID),
-			twitter.TweetRecentSearchOpts{
-				MaxResults:  100,
-				SinceID:     lastID,
-				TweetFields: []twitter.TweetField{twitter.TweetFieldAuthorID, twitter.TweetFieldCreatedAt},
-			},
+			searchOpts,
 		)
 		if err != nil {
 			panic(err)
@@ -72,11 +91,11 @@ func main() {
 			}
 		}
 
+		searchOpts.NextToken = resp.Meta.NextToken
 		// Finish if no more tweets
-		if len(resp.Raw.Tweets) < 100 {
+		if len(searchOpts.NextToken) == 0 {
 			break
 		}
-		lastID = resp.Raw.Tweets[len(resp.Raw.Tweets)-1].ID
 	}
 	cancel()
 	fmt.Printf("total catalan voters found: %d\n", len(catalanVoters))
@@ -92,7 +111,6 @@ func main() {
 func checkValidUsers(client *twitter.Client, ids []string, threshold int) int {
 	valid := 0
 
-	// Lookup for the number of followers for each user (TODO)
 	for i := 0; i < len(ids); i += 50 {
 		j := i + 50
 		if j > len(ids) {
