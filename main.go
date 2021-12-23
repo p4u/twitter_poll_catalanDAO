@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/g8rswimmer/go-twitter/v2"
 )
@@ -45,9 +46,10 @@ func main() {
 	catalanVoters := []string{}
 	degens := []string{}
 	lastID := ""
+	tctx, cancel := context.WithCancel(context.TODO())
 	for {
 		resp, err := client.TweetRecentSearch(
-			context.Background(),
+			tctx,
 			fmt.Sprintf("conversation_id:%s", *tweetID),
 			twitter.TweetRecentSearchOpts{
 				MaxResults:  100,
@@ -61,10 +63,10 @@ func main() {
 
 		for _, t := range resp.Raw.Tweets {
 			if strings.Contains(strings.ToLower(t.Text), "catalan") {
-				catalanVoters = append(catalanVoters, fmt.Sprintf("%s", t.AuthorID))
+				catalanVoters = append(catalanVoters, fmt.Sprintf(t.AuthorID))
 			}
 			if strings.Contains(strings.ToLower(t.Text), "verse") {
-				degens = append(degens, fmt.Sprintf("%s", t.AuthorID))
+				degens = append(degens, fmt.Sprintf(t.AuthorID))
 			}
 		}
 
@@ -74,19 +76,29 @@ func main() {
 		}
 		lastID = resp.Raw.Tweets[len(resp.Raw.Tweets)-1].ID
 	}
-
+	cancel()
 	fmt.Printf("catalan voters: %d | dataverse voters: %d\n", len(catalanVoters), len(degens))
-
+	time.Sleep(time.Second)
 	// Lookup for the number of followers for each user (TODO)
-	//for _, v := range catalanVoters {
-	//	client.UserLookup(
-	//		context.Background(),
-	//		[]string{v},
-	//	twitter.UserLookupOpts{
-	//UserFields: []twitter.UserField{twitter.UserFieldUserName},
-	//},
-	//)
-	//}
+
+	tctx, cancel = context.WithCancel(context.TODO())
+	for _, v := range catalanVoters {
+		resp, err := client.UserFollowersLookup(
+			tctx,
+			v,
+			twitter.UserFollowersLookupOpts{},
+		)
+		if err != nil {
+			panic(err)
+		}
+		count := 0
+		for range resp.Raw.Users {
+			count++
+		}
+		fmt.Printf("User %s have %d followers", v, count)
+		time.Sleep(time.Second * 3)
+	}
+	cancel()
 
 	// Useful for printing th reply in JSON (nice) format
 	/*
