@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -32,6 +33,7 @@ func (tw *TwitterHandler) Init(bearerToken string) {
 func main() {
 	bearerToken := flag.String("token", "", "bearer APIv2 twitter token")
 	tweetID := flag.String("id", "1473394217284255744", "tweet ID")
+	followersThreshold := flag.Int("threshold", 10, "number of minimum followers per user to count it as valid voter")
 	flag.Parse()
 
 	tw := TwitterHandler{}
@@ -62,10 +64,10 @@ func main() {
 		}
 
 		for _, t := range resp.Raw.Tweets {
-			if strings.Contains(strings.ToLower(t.Text), "catalan") {
+			if strings.Contains(strings.ToLower(t.Text), "catalandao") {
 				catalanVoters = append(catalanVoters, fmt.Sprintf(t.AuthorID))
 			}
-			if strings.Contains(strings.ToLower(t.Text), "verse") {
+			if strings.Contains(strings.ToLower(t.Text), "dataverse") {
 				degens = append(degens, fmt.Sprintf(t.AuthorID))
 			}
 		}
@@ -77,35 +79,52 @@ func main() {
 		lastID = resp.Raw.Tweets[len(resp.Raw.Tweets)-1].ID
 	}
 	cancel()
-	fmt.Printf("catalan voters: %d | dataverse voters: %d\n", len(catalanVoters), len(degens))
-	time.Sleep(time.Second)
-	// Lookup for the number of followers for each user (TODO)
+	fmt.Printf("total catalan voters found: %d\n", len(catalanVoters))
+	fmt.Printf("total dataverse voters found: %d\n", len(degens))
 
-	tctx, cancel = context.WithCancel(context.TODO())
-	for _, v := range catalanVoters {
-		resp, err := client.UserFollowersLookup(
-			tctx,
-			v,
-			twitter.UserFollowersLookupOpts{},
-		)
+	catalanValid := checkValidUsers(client, catalanVoters, *followersThreshold)
+	degenValid := checkValidUsers(client, degens, *followersThreshold)
+	fmt.Printf("catalanDAO valid voters: %d\n", catalanValid)
+	fmt.Printf("dataverse valid voters: %d\n", degenValid)
+
+}
+
+func checkValidUsers(client *twitter.Client, ids []string, threshold int) int {
+	valid := 0
+
+	// Lookup for the number of followers for each user (TODO)
+	for i := 0; i < len(ids); i += 50 {
+		j := i + 50
+		if j > len(ids) {
+			j = len(ids)
+		}
+		tctx, cancel := context.WithCancel(context.TODO())
+		user, err := client.UserLookup(tctx, ids[i:j], twitter.UserLookupOpts{
+			UserFields: []twitter.UserField{
+				twitter.UserFieldName,
+				twitter.UserFieldPublicMetrics,
+			},
+		})
 		if err != nil {
 			panic(err)
 		}
-		count := 0
-		for range resp.Raw.Users {
-			count++
+		for _, u := range user.Raw.Users {
+			if u.PublicMetrics.Followers >= threshold {
+				valid++
+			}
+			//fmt.Printf("user %s have %d followers\n", u.Name, u.PublicMetrics.Followers)
 		}
-		fmt.Printf("User %s have %d followers", v, count)
-		time.Sleep(time.Second * 3)
+		cancel()
+		time.Sleep(time.Second * 1)
 	}
-	cancel()
+	return valid
+}
 
-	// Useful for printing th reply in JSON (nice) format
-	/*
-		enc, err := json.MarshalIndent(resp, "", "    ")
-		if err != nil {
-			log.Panic(err)
-		}
-		fmt.Println(string(enc))
-	*/
+// Useful for printing th reply in JSON (nice) format
+func printResponse(resp interface{}) {
+	enc, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		fmt.Errorf("error marshaling: %v", err)
+	}
+	fmt.Println(string(enc))
 }
