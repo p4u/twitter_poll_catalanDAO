@@ -1,0 +1,4 @@
+github.com/g8rswimmer/go-twitter v1.1.4 h1:H1Fezm1/Sui6uYb2kXREZPvEae6Nx91j6X5GdhRssXs=
+github.com/g8rswimmer/go-twitter v1.1.4/go.mod h1:/6ZcU70I0EMkL0Zu1iABzKfE4E2oCvDUL2LZVQexLIA=
+github.com/g8rswimmer/go-twitter v2.0.0-beta4.0.20211017194706-b6f72818566c+incompatible h1:fXjM7w2RNFS6ZzZVNfNOrrhdhBUkHtpes4bfdgaqc6w=
+github.com/g8rswimmer/go-twitter v2.0.0-beta4.0.20211017194706-b6f72818566c+incompatible/go.mod h1:/6ZcU70I0EMkL0Zu1iABzKfE4E2oCvDUL2LZVQexLIA=
