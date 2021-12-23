@@ -69,6 +69,7 @@ func main() {
 		panic(err)
 	}
 
+	uniqIDs := make(map[string]bool)
 	catalanVoters := []string{}
 	degens := []string{}
 	tctx, cancel := context.WithCancel(context.TODO())
@@ -83,11 +84,16 @@ func main() {
 		}
 
 		for _, t := range resp.Raw.Tweets {
+			if _, ok := uniqIDs[t.AuthorID]; ok {
+				continue
+			}
 			if strings.Contains(strings.ToLower(t.Text), "catalandao") {
 				catalanVoters = append(catalanVoters, fmt.Sprintf(t.AuthorID))
+				uniqIDs[t.AuthorID] = true
 			}
 			if strings.Contains(strings.ToLower(t.Text), "dataverse") {
 				degens = append(degens, fmt.Sprintf(t.AuthorID))
+				uniqIDs[t.AuthorID] = true
 			}
 		}
 
