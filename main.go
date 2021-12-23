@@ -61,12 +61,15 @@ func main() {
 	var err error
 	if len(*startDateStr) > 0 {
 		searchOpts.StartTime, err = time.Parse(CUSTOM_TIME, *startDateStr)
+		if err != nil {
+			panic(err)
+		}
 	}
 	if len(*endDateStr) > 0 {
 		searchOpts.EndTime, err = time.Parse(CUSTOM_TIME, *endDateStr)
-	}
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	uniqIDs := make(map[string]bool)
