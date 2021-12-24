@@ -74,7 +74,7 @@ func main() {
 
 	uniqIDs := make(map[string]bool)
 	catalanVoters := []string{}
-	degens := []string{}
+	dataVerse := []string{}
 	tctx, cancel := context.WithCancel(context.TODO())
 	for {
 		resp, err := client.TweetRecentSearch(
@@ -95,7 +95,7 @@ func main() {
 				uniqIDs[t.AuthorID] = true
 			}
 			if strings.Contains(strings.ToLower(t.Text), "dataverse") {
-				degens = append(degens, fmt.Sprintf(t.AuthorID))
+				dataVerse = append(dataVerse, fmt.Sprintf(t.AuthorID))
 				uniqIDs[t.AuthorID] = true
 			}
 		}
@@ -108,10 +108,10 @@ func main() {
 	}
 	cancel()
 	fmt.Printf("total catalan voters found: %d\n", len(catalanVoters))
-	fmt.Printf("total dataverse voters found: %d\n", len(degens))
+	fmt.Printf("total dataverse voters found: %d\n", len(dataVerse))
 
 	catalanValid := checkValidUsers(client, catalanVoters, *followersThreshold)
-	degenValid := checkValidUsers(client, degens, *followersThreshold)
+	degenValid := checkValidUsers(client, dataVerse, *followersThreshold)
 	fmt.Printf("catalanDAO valid voters: %d\n", catalanValid)
 	fmt.Printf("dataverse valid voters: %d\n", degenValid)
 
